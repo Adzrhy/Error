@@ -10,6 +10,8 @@ import 'screens/job_list_screen.dart'; // Job list screen
 import 'screens/forms_screen.dart'; // Forms screen
 import 'screens/user_dashboard.dart';
 import 'screens/joblist_user_screen.dart';
+import 'screens/pending_screen.dart';
+import 'screens/applicants_screen.dart';
 import 'package:dashboard/screens/requirements_user_screen.dart';
 
 void main() async {
@@ -19,7 +21,8 @@ void main() async {
   // Initialize Supabase with your project URL and Anon Key
   await Supabase.initialize(
     url: 'https://xzcajqfiqnkfatfyhcgk.supabase.co', // Your Supabase URL
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6Y2FqcWZpcW5rZmF0ZnloY2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU3NjgxMjcsImV4cCI6MjA1MTM0NDEyN30.Uj05jQH1UAF3hVHixIum3h9pmfSMx21UFi9kEBuu68U', // Your Supabase Anon Key
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6Y2FqcWZpcW5rZmF0ZnloY2drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU3NjgxMjcsImV4cCI6MjA1MTM0NDEyN30.Uj05jQH1UAF3hVHixIum3h9pmfSMx21UFi9kEBuu68U', // Your Supabase Anon Key
   );
 
   runApp(const MyApp());
@@ -44,14 +47,14 @@ class MyApp extends StatelessWidget {
         '/admin_dashboard': (context) => const AdminHomeScreen(),
         '/employees': (context) => const EmployeeScreen(),
         '/interview': (context) => const InterviewScreen(),
-        '/jobs': (context) => const JobListingsScreen(),
+        '/jobs': (context) => const JobListingsContent(),
         '/forms': (context) => const FormsScreen(),
         '/lists': (context) => const JobListScreen(),
         '/user_dashboard': (context) => const UserDashboard(),
         '/joblist_user_screen': (context) => const JobListUserScreen(),
         '/requirements_user_screen': (context) => const RequirementsScreen(),
-        
-        
+        '/pending': (context) => const PendingScreen(),
+        '/applicants': (context) => const ApplicantsScreen(),
       },
     );
   }

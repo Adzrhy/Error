@@ -57,15 +57,6 @@ class _FormsScreenState extends State<FormsScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Forms"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
       body: Column(
         children: [
           Padding(
@@ -99,9 +90,9 @@ class _FormsScreenState extends State<FormsScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16.0, vertical: 24.0),
                 child: Align(
-                  alignment: Alignment.topLeft, // Align all cards to the left
+                  alignment: Alignment.topLeft,
                   child: Wrap(
-                    alignment: WrapAlignment.start, // Maintain left alignment
+                    alignment: WrapAlignment.start,
                     spacing: 16, // Horizontal spacing between cards
                     runSpacing: 16, // Vertical spacing between cards
                     children: filteredForms
@@ -125,7 +116,7 @@ class _FormsScreenState extends State<FormsScreen> {
     required BuildContext context,
   }) {
     return SizedBox(
-      width: 300, // Consistent width with JobListScreen
+      width: 300, // Consistent width with other card layouts
       child: Card(
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

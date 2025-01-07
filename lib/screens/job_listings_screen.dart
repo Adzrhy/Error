@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dashboard/screens/new_job_description_form.dart';
 
-class JobListingsScreen extends StatefulWidget {
-  const JobListingsScreen({super.key});
+class JobListingsContent extends StatefulWidget {
+  const JobListingsContent({super.key});
 
   @override
-  State<JobListingsScreen> createState() => _JobListingsScreenState();
+  State<JobListingsContent> createState() => _JobListingsContentState();
 }
 
-class _JobListingsScreenState extends State<JobListingsScreen> {
+class _JobListingsContentState extends State<JobListingsContent> {
   String searchQuery = '';
   List<Map<String, dynamic>> jobs = [];
 
@@ -62,59 +62,24 @@ class _JobListingsScreenState extends State<JobListingsScreen> {
     }
   }
 
-  void showActionsMenu(BuildContext context, Map<String, dynamic> job) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Edit'),
-              onTap: () {
-                Navigator.pop(context); // Close the menu
-                // Implement edit logic
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete'),
-              onTap: () {
-                Navigator.pop(context); // Close the menu
-                deleteJob(job['id']);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context); // Navigate back to AdminHomeScreen
-          },
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Center(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isWideScreen = constraints.maxWidth > 800;
+
+        return Center(
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 1600),
-            margin: const EdgeInsets.all(24),
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 6,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -122,205 +87,188 @@ class _JobListingsScreenState extends State<JobListingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
-                Container(
-                  padding: const EdgeInsets.all(36),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey[200]!),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Search bar
+                    Container(
+                      width: isWideScreen ? 400 : 250,
+                      height: 45,
+                      margin: const EdgeInsets.only(right: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              onChanged: (value) {
+                                setState(() {
+                                  searchQuery = value;
+                                });
+                              },
+                              style: const TextStyle(fontSize: 16),
+                              decoration: InputDecoration(
+                                hintText: 'Search jobs...',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 14,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 0),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Icon(Icons.search,
+                                color: Colors.grey[500], size: 24),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Job Listings',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w500,
+                    // Add new job button
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => const NewJobDescriptionForm(),
+                        ).then((_) => fetchJobs());
+                      },
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text(
+                        'Add Job',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4CAF50),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      Row(
-                        children: [
-                          Container(
-                            width: 500,
-                            height: 45,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(4),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Data Table
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: constraints.maxWidth,
+                    ),
+                    child: DataTable(
+                      headingRowColor: MaterialStateProperty.all(
+                        const Color(0xFF358873),
+                      ),
+                      dataRowMinHeight: 60,
+                      dataRowMaxHeight: 70,
+                      horizontalMargin: 16,
+                      columnSpacing: isWideScreen ? 40 : 24,
+                      columns: const [
+                        DataColumn(
+                          label: Text(
+                            'Vacant Positions',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    onChanged: (value) {
-                                      setState(() {
-                                        searchQuery = value;
-                                      });
-                                    },
-                                    style: const TextStyle(fontSize: 16),
-                                    decoration: InputDecoration(
-                                      hintText: 'Search jobs...',
-                                      hintStyle: TextStyle(
-                                        color: Colors.grey[400],
-                                        fontSize: 16,
-                                      ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 0,
-                                      ),
-                                      border: InputBorder.none,
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Department',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Date Posted',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Actions',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                      rows: filteredJobs.map((job) {
+                        return DataRow(
+                          cells: [
+                            DataCell(
+                              Text(job['job_title'] ?? '',
+                                  style: const TextStyle(fontSize: 14)),
+                            ),
+                            DataCell(
+                              Text(job['department'] ?? '',
+                                  style: const TextStyle(fontSize: 14)),
+                            ),
+                            DataCell(
+                              Text(job['created_at'] ?? '',
+                                  style: const TextStyle(fontSize: 14)),
+                            ),
+                            DataCell(
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert),
+                                onSelected: (value) {
+                                  if (value == 'Edit') {
+                                    print('Edit ${job['job_title']}');
+                                  } else if (value == 'Delete') {
+                                    deleteJob(job['id']);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'Edit',
+                                    child: ListTile(
+                                      leading: Icon(Icons.edit),
+                                      title: Text('Edit'),
                                     ),
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 16),
-                                  child: Icon(Icons.search,
-                                      color: Colors.grey[400], size: 24),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          SizedBox(
-                            height: 45,
-                            width: 160,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                // Show the New Job Description form as a dialog
-                                showDialog(
-                                  context: context,
-                                  builder: (context) =>
-                                      const NewJobDescriptionForm(),
-                                ).then((_) => fetchJobs()); // Refresh jobs list
-                              },
-                              icon: const Icon(Icons.add, size: 20),
-                              label: const Text(
-                                'Add New Job',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF358873),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 0,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // Data Table
-                Container(
-                  margin: const EdgeInsets.all(36),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[200]!),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Theme(
-                      data: Theme.of(context).copyWith(
-                        dividerColor: Colors.grey[200],
-                      ),
-                      child: DataTable(
-                        headingRowColor: MaterialStateProperty.all(
-                          const Color(0xFF358873),
-                        ),
-                        dataRowHeight: 50,
-                        horizontalMargin: 50,
-                        columnSpacing: 280,
-                        columns: [
-                          const DataColumn(
-                            label: Text(
-                              'Vacant Positions',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          const DataColumn(
-                            label: Text(
-                              'Department',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          const DataColumn(
-                            label: Text(
-                              'Date Posted',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          const DataColumn(
-                            label: Text(
-                              'Actions',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                        rows: filteredJobs.map((job) {
-                          return DataRow(
-                            cells: [
-                              DataCell(Text(job['job_title'] ?? '')),
-                              DataCell(Text(job['department'] ?? '')),
-                              DataCell(Text(job['created_at'] ?? '')),
-                              DataCell(
-                                PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert),
-                                  onSelected: (value) {
-                                    if (value == 'Edit') {
-                                      // Edit logic here
-                                      print('Edit ${job['job_title']}');
-                                    } else if (value == 'Delete') {
-                                      deleteJob(job['id']);
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'Edit',
-                                      child: ListTile(
-                                        leading: Icon(Icons.edit),
-                                        title: Text('Edit'),
-                                      ),
+                                  const PopupMenuItem(
+                                    value: 'Delete',
+                                    child: ListTile(
+                                      leading:
+                                          Icon(Icons.delete, color: Colors.red),
+                                      title: Text('Delete'),
                                     ),
-                                    const PopupMenuItem(
-                                      value: 'Delete',
-                                      child: ListTile(
-                                        leading: Icon(Icons.delete, color: Colors.red),
-                                        title: Text('Delete'),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
