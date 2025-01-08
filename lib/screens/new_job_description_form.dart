@@ -11,7 +11,8 @@ class NewJobDescriptionForm extends StatefulWidget {
 class _NewJobDescriptionFormState extends State<NewJobDescriptionForm> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _jobPositionController = TextEditingController();
-  final TextEditingController _jobDescriptionController = TextEditingController();
+  final TextEditingController _jobDescriptionController =
+      TextEditingController();
   final TextEditingController _sectionController = TextEditingController();
   final TextEditingController _requirementsController = TextEditingController();
   final TextEditingController _tagsController = TextEditingController();
@@ -80,7 +81,8 @@ class _NewJobDescriptionFormState extends State<NewJobDescriptionForm> {
                   children: [
                     const Text(
                       'New Job Description',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close),
@@ -105,7 +107,8 @@ class _NewJobDescriptionFormState extends State<NewJobDescriptionForm> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(labelText: 'Department'),
+                        decoration:
+                            const InputDecoration(labelText: 'Department'),
                         items: ['SEICT', 'SAM', 'HR', 'Marketing', 'Finance']
                             .map((dept) => DropdownMenuItem(
                                   value: dept,
@@ -122,7 +125,8 @@ class _NewJobDescriptionFormState extends State<NewJobDescriptionForm> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        decoration: const InputDecoration(labelText: 'Availability'),
+                        decoration:
+                            const InputDecoration(labelText: 'Availability'),
                         items: ['Full-Time', 'Part-Time', 'Contract']
                             .map((status) => DropdownMenuItem(
                                   value: status,
@@ -152,7 +156,12 @@ class _NewJobDescriptionFormState extends State<NewJobDescriptionForm> {
                     Expanded(
                       child: DropdownButtonFormField<String>(
                         decoration: const InputDecoration(labelText: 'Campus'),
-                        items: ['Main Campus', 'City Campus', 'Uz Ipil', 'Uz Pagadian']
+                        items: [
+                          'Main Campus',
+                          'City Campus',
+                          'Uz Ipil',
+                          'Uz Pagadian'
+                        ]
                             .map((campus) => DropdownMenuItem(
                                   value: campus,
                                   child: Text(campus),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../modal/profile_modal.dart';
 import 'joblist_user_screen.dart';
 import 'requirements_user_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -10,69 +11,61 @@ class UserDashboard extends StatefulWidget {
   State<UserDashboard> createState() => _UserDashboardState();
 }
 
-class _UserDashboardState extends State<UserDashboard> {
+class _UserDashboardState extends State<UserDashboard>
+    with SingleTickerProviderStateMixin {
   bool isSidebarOpen = true;
+  bool isNotificationVisible = false;
+  bool isDropdownOpen = false;
+  String selectedMenu = 'Home';
 
-  // Current Screen
-  late Widget currentScreen;
-  String headerTitle = 'Home'; // Default title
+  final GlobalKey dropdownKey = GlobalKey();
+  final Duration transitionDuration = const Duration(milliseconds: 300);
 
-  List<Map<String, dynamic>> jobs = [];
-  bool isLoading = true;
-
-  String selectedDepartment = "All";
-  String selectedCampus = "All";
-  String selectedAvailability = "All";
+  String userName = 'User';
+  String userEmail = 'user@example.com';
+  String? profilePictureUrl;
 
   @override
   void initState() {
     super.initState();
-    currentScreen = _buildHomeContent(); // Default to "Home" content
-    fetchJobs();
+    _fetchProfile();
   }
 
-  Future<void> fetchJobs() async {
-  try {
-    final response = await Supabase.instance.client
-        .from('jobs')
-        .select(
-            'job_title, job_description, department, campus, availability, requirements, tags')
-        .order('created_at', ascending: false); // Use `ascending: false` for descending order
+  Future<void> _fetchProfile() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
 
-    if (response != null && response is List) {
-      setState(() {
-        jobs = List<Map<String, dynamic>>.from(response);
-        isLoading = false;
-      });
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
     }
-  } catch (error) {
-    setState(() {
-      isLoading = false;
-    });
-    print('Error fetching jobs: $error');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error fetching jobs: $error')),
-    );
+
+    try {
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select('given_name, sur_name, email, profile_picture_url')
+          .eq('id', userId)
+          .single();
+
+      if (response != null) {
+        setState(() {
+          userName = '${response['given_name']} ${response['sur_name']}';
+          userEmail = response['email'] ?? 'No email';
+          profilePictureUrl = response['profile_picture_url'] ??
+              'assets/profile_placeholder.png';
+        });
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching profile: $error')),
+      );
+    }
   }
-}
 
-
-  List<Map<String, dynamic>> get filteredJobs {
-    return jobs.where((job) {
-      final matchesDepartment = selectedDepartment == "All" ||
-          job['department'] == selectedDepartment;
-      final matchesCampus =
-          selectedCampus == "All" || job['campus'] == selectedCampus;
-      final matchesAvailability =
-          selectedAvailability == "All" || job['availability'] == selectedAvailability;
-      return matchesDepartment && matchesCampus && matchesAvailability;
-    }).toList();
-  }
-
-  void _switchScreen(Widget screen, String title) {
+  void _toggleDropdown() {
     setState(() {
-      currentScreen = screen;
-      headerTitle = title;
+      isDropdownOpen = !isDropdownOpen;
     });
   }
 
@@ -85,7 +78,7 @@ class _UserDashboardState extends State<UserDashboard> {
           // Sidebar
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            width: isSidebarOpen ? 200 : 0,
+            width: isSidebarOpen ? 250 : 0,
             child: Container(
               color: Colors.white,
               child: isSidebarOpen
@@ -95,46 +88,90 @@ class _UserDashboardState extends State<UserDashboard> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () =>
-                                setState(() => isSidebarOpen = false),
+                            icon: const Icon(Icons.close, size: 24),
+                            onPressed: () {
+                              setState(() => isSidebarOpen = false);
+                            },
                           ),
                         ),
-                        ListTile(
-                          leading: const Icon(Icons.dashboard, size: 20),
-                          title: const Text('Home', style: TextStyle(fontSize: 14)),
-                          onTap: () {
-                            _switchScreen(_buildHomeContent(), 'Home');
-                          },
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: ListView(
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.dashboard, size: 20),
+                                title: const Text(
+                                  'Home',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                onTap: () {
+                                  setState(() {
+                                    selectedMenu = 'Home';
+                                  });
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.work, size: 20),
+                                title: const Text(
+                                  'Jobs',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                onTap: () {
+                                  setState(() {
+                                    selectedMenu = 'Jobs';
+                                  });
+                                },
+                              ),
+                              ListTile(
+                                leading:
+                                    const Icon(Icons.description, size: 20),
+                                title: const Text(
+                                  'Requirements',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                onTap: () {
+                                  setState(() {
+                                    selectedMenu = 'Requirements';
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                        ListTile(
-                          leading: const Icon(Icons.work, size: 20),
-                          title: const Text('Job List', style: TextStyle(fontSize: 14)),
-                          onTap: () {
-                            _switchScreen(const JobListUserScreen(), 'Jobs');
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.description, size: 20),
-                          title: const Text('Requirements', style: TextStyle(fontSize: 14)),
-                          onTap: () {
-                            _switchScreen(const RequirementsScreen(), 'Requirements');
-                          },
-                        ),
-                        const Spacer(),
                         const Divider(height: 20),
-                        const Padding(
-                          padding: EdgeInsets.only(top: 30, bottom: 120),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 30, bottom: 120),
                           child: Column(
                             children: [
-                              CircleAvatar(
-                                radius: 40,
-                                backgroundImage: AssetImage('assets/image.png'),
+                              GestureDetector(
+                                onTap: () async {
+                                  await showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return ProfileModal(
+                                        onProfileUpdated: _fetchProfile,
+                                      );
+                                    },
+                                  );
+                                  _fetchProfile();
+                                },
+                                child: CircleAvatar(
+                                  radius: 50,
+                                  backgroundImage: profilePictureUrl != null
+                                      ? NetworkImage(profilePictureUrl!)
+                                      : const AssetImage(
+                                              'assets/profile_placeholder.png')
+                                          as ImageProvider,
+                                ),
                               ),
-                              SizedBox(height: 10),
+                              const SizedBox(height: 10),
                               Text(
-                                'Sudaiz Alhad',
-                                style: TextStyle(fontSize: 14),
+                                userName,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              Text(
+                                userEmail,
+                                style: const TextStyle(fontSize: 12),
                               ),
                             ],
                           ),
@@ -148,53 +185,145 @@ class _UserDashboardState extends State<UserDashboard> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
+              child: Stack(
                 children: [
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Column(
                     children: [
+                      // Header
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          if (!isSidebarOpen)
-                            IconButton(
-                              icon: const Icon(Icons.menu),
-                              onPressed: () =>
-                                  setState(() => isSidebarOpen = true),
-                            ),
-                          const SizedBox(width: 8),
-                          Text(
-                            headerTitle,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            children: [
+                              if (!isSidebarOpen)
+                                IconButton(
+                                  icon: const Icon(Icons.menu, size: 24),
+                                  onPressed: () {
+                                    setState(() => isSidebarOpen = true);
+                                  },
+                                ),
+                              const SizedBox(width: 8),
+                              Text(
+                                selectedMenu == 'Home'
+                                    ? 'Dashboard'
+                                    : selectedMenu == 'Jobs'
+                                        ? 'Jobs Listings'
+                                        : 'Requirements Management',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.notifications),
+                                onPressed: () {
+                                  setState(() {
+                                    isNotificationVisible =
+                                        !isNotificationVisible;
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                key: dropdownKey,
+                                onTap: _toggleDropdown,
+                                child: Row(
+                                  children: [
+                                    const Text(
+                                      'User',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    Icon(
+                                      isDropdownOpen
+                                          ? Icons.arrow_drop_down
+                                          : Icons.arrow_right,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.notifications),
-                            onPressed: () {
-                              // Notification action
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'User',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 16),
+                      // Main Content Area
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: selectedMenu == 'Home'
+                              ? _buildHomeContent()
+                              : selectedMenu == 'Jobs'
+                                  ? const JobListUserScreen()
+                                  : RequirementsScreen(requirements: [
+                                      'Resume',
+                                      'Certificate',
+                                      'Portfolio',
+                                    ]),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  // Main Content
-                  Expanded(child: currentScreen),
+                  // Dropdown menu
+                  if (isDropdownOpen)
+                    Positioned(
+                      top: 60,
+                      right: 20,
+                      child: Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 150,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ListTile(
+                                title: const Text('Profile'),
+                                onTap: () async {
+                                  await showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return ProfileModal(
+                                        onProfileUpdated: _fetchProfile,
+                                      );
+                                    },
+                                  );
+                                  _fetchProfile();
+                                  setState(() {
+                                    isDropdownOpen = false;
+                                  });
+                                },
+                              ),
+                              ListTile(
+                                title: const Text('Settings'),
+                                onTap: () {
+                                  setState(() {
+                                    isDropdownOpen = false;
+                                  });
+                                },
+                              ),
+                              ListTile(
+                                title: const Text('Logout'),
+                                onTap: () {
+                                  Navigator.pushReplacementNamed(context, '/');
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -205,138 +334,11 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   Widget _buildHomeContent() {
-    return isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : Column(
-            children: [
-              // Filters
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: selectedDepartment,
-                      items: [
-                        "All",
-                        "Engineering",
-                        "HR",
-                        "Finance"
-                      ].map((dept) {
-                        return DropdownMenuItem(
-                          value: dept,
-                          child: Text(dept),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedDepartment = value!;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        labelText: 'Department',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: selectedCampus,
-                      items: [
-                        "All",
-                        "Main Campus",
-                        "City Campus"
-                      ].map((campus) {
-                        return DropdownMenuItem(
-                          value: campus,
-                          child: Text(campus),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedCampus = value!;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        labelText: 'Campus',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: selectedAvailability,
-                      items: [
-                        "All",
-                        "Full-Time",
-                        "Part-Time"
-                      ].map((availability) {
-                        return DropdownMenuItem(
-                          value: availability,
-                          child: Text(availability),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedAvailability = value!;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        labelText: 'Availability',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Job Listings
-              Expanded(
-                child: filteredJobs.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No jobs available at the moment.',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: filteredJobs.length,
-                        itemBuilder: (context, index) {
-                          final job = filteredJobs[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            child: ListTile(
-                              title: Text(job['job_title'] ?? ''),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Department: ${job['department'] ?? ''}'),
-                                  Text('Campus: ${job['campus'] ?? ''}'),
-                                  Text(
-                                      'Availability: ${job['availability'] ?? ''}'),
-                                ],
-                              ),
-                              trailing: ElevatedButton(
-                                onPressed: () {
-                                  // Handle "View" functionality
-                                },
-                                child: const Text('View'),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          );
+    return const Center(
+      child: Text(
+        'Welcome to the User Dashboard!',
+        style: TextStyle(fontSize: 18, color: Colors.grey),
+      ),
+    );
   }
 }

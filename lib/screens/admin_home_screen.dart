@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'home_section.dart';
-import 'job_listings_screen.dart'; // Import JobListingsContent
-import 'forms_screen.dart'; // Import FormsScreen
-import 'job_list_screen.dart'; // Import JobListScreen
+import 'job_listings_screen.dart';
+import 'forms_screen.dart';
+import 'job_list_screen.dart';
 import '../modal/profile_modal.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -17,10 +18,52 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
   bool isSidebarOpen = true;
   bool isNotificationVisible = false;
   bool isDropdownOpen = false;
-  String selectedMenu = 'Home'; // Default menu selection
+  String selectedMenu = 'Home';
 
   final GlobalKey dropdownKey = GlobalKey();
   final Duration transitionDuration = const Duration(milliseconds: 300);
+
+  String userName = 'Admin User';
+  String userEmail = 'admin@example.com';
+  String? profilePictureUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
+
+    try {
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select('given_name, sur_name, email, profile_picture_url')
+          .eq('id', userId)
+          .single();
+
+      if (response != null) {
+        setState(() {
+          userName = '${response['given_name']} ${response['sur_name']}';
+          userEmail = response['email'] ?? 'No email';
+          profilePictureUrl = response['profile_picture_url'] ??
+              'assets/profile_placeholder.png';
+        });
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching profile: $error')),
+      );
+    }
+  }
 
   void _toggleDropdown() {
     setState(() {
@@ -30,16 +73,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
       backgroundColor: Colors.grey[200],
       body: Row(
         children: [
-          // Sidebar
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            width: isSidebarOpen ? 250 : 0, // 0 when closed, 250 when open
+            width: isSidebarOpen ? 250 : 0,
             child: Container(
               color: Colors.white,
               child: isSidebarOpen
@@ -112,22 +152,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
                           ),
                         ),
                         const Divider(height: 20),
-                        const Padding(
-                          padding: EdgeInsets.only(top: 30, bottom: 120),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 30, bottom: 120),
                           child: Column(
                             children: [
                               CircleAvatar(
                                 radius: 50,
-                                backgroundImage: AssetImage('assets/image.png'),
+                                backgroundImage: profilePictureUrl != null
+                                    ? NetworkImage(profilePictureUrl!)
+                                    : const AssetImage(
+                                            'assets/profile_placeholder.png')
+                                        as ImageProvider,
                               ),
-                              SizedBox(height: 10),
+                              const SizedBox(height: 10),
                               Text(
-                                'Admin User',
-                                style: TextStyle(fontSize: 14),
+                                userName,
+                                style: const TextStyle(fontSize: 14),
                               ),
                               Text(
-                                'admin@example.com',
-                                style: TextStyle(fontSize: 12),
+                                userEmail,
+                                style: const TextStyle(fontSize: 12),
                               ),
                             ],
                           ),
@@ -137,7 +181,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
                   : null,
             ),
           ),
-          // Main Content
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -145,7 +188,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
                 children: [
                   Column(
                     children: [
-                      // Top bar
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -212,22 +254,20 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Main Content based on selected menu
                       Expanded(
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           child: selectedMenu == 'Home'
-                              ? const HomeSection() // Home content
+                              ? const HomeSection()
                               : selectedMenu == 'Jobs'
-                                  ? const JobListingsContent() // Jobs content
+                                  ? const JobListingsContent()
                                   : selectedMenu == 'List'
-                                      ? const JobListScreen() // List content
-                                      : const FormsScreen(), // Forms content
+                                      ? const JobListScreen()
+                                      : const FormsScreen(),
                         ),
                       ),
                     ],
                   ),
-                  // Dropdown menu
                   if (isDropdownOpen)
                     Positioned(
                       top: 60,
@@ -246,13 +286,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen>
                             children: [
                               ListTile(
                                 title: const Text('Profile'),
-                                onTap: () {
-                                  showDialog(
+                                onTap: () async {
+                                  await showDialog(
                                     context: context,
                                     builder: (BuildContext context) {
-                                      return const ProfileModal();
+                                      return ProfileModal(
+                                        onProfileUpdated: _fetchProfile,
+                                      );
                                     },
                                   );
+                                  _fetchProfile();
                                   setState(() {
                                     isDropdownOpen = false;
                                   });

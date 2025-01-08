@@ -12,7 +12,7 @@ import 'screens/user_dashboard.dart';
 import 'screens/joblist_user_screen.dart';
 import 'screens/pending_screen.dart';
 import 'screens/applicants_screen.dart';
-import 'package:dashboard/screens/requirements_user_screen.dart';
+import 'screens/requirements_user_screen.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -52,7 +52,13 @@ class MyApp extends StatelessWidget {
         '/lists': (context) => const JobListScreen(),
         '/user_dashboard': (context) => const UserDashboard(),
         '/joblist_user_screen': (context) => const JobListUserScreen(),
-        '/requirements_user_screen': (context) => const RequirementsScreen(),
+        '/requirements_user_screen': (context) => RequirementsScreen(
+              requirements: [
+                'Resume',
+                'Certificate',
+                'Portfolio',
+              ],
+            ), // Provide the `requirements` parameter here
         '/pending': (context) => const PendingScreen(),
         '/applicants': (context) => const ApplicantsScreen(),
       },

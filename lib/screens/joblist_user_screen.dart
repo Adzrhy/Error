@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'requirements_user_screen.dart';
 
 class JobListUserScreen extends StatefulWidget {
   const JobListUserScreen({super.key});
@@ -8,107 +10,115 @@ class JobListUserScreen extends StatefulWidget {
 }
 
 class _JobListUserScreenState extends State<JobListUserScreen> {
-  final List<Map<String, String>> jobs = [
-    {
-      'jobTitle': 'HR Manager',
-      'jobDescription': 'Responsible for managing HR tasks and policies.',
-      'availability': 'Full-Time',
-      'location': 'San Francisco, CA',
-    },
-    {
-      'jobTitle': 'Assistant Professor',
-      'jobDescription': 'Teach undergraduate students and conduct research.',
-      'availability': 'Part-Time',
-      'location': 'New York, NY',
-    },
-    {
-      'jobTitle': 'Software Developer',
-      'jobDescription': 'Develop and maintain web applications.',
-      'availability': 'Full-Time',
-      'location': 'Seattle, WA',
-    },
-    {
-      'jobTitle': 'Marketing Specialist',
-      'jobDescription': 'Plan and execute marketing strategies.',
-      'availability': 'Part-Time',
-      'location': 'Chicago, IL',
-    },
-    {
-      'jobTitle': 'Data Analyst',
-      'jobDescription': 'Analyze complex datasets and provide insights.',
-      'availability': 'Full-Time',
-      'location': 'Austin, TX',
-    },
-    {
-      'jobTitle': 'Project Manager',
-      'jobDescription': 'Oversee and manage multiple projects.',
-      'availability': 'Part-Time',
-      'location': 'Los Angeles, CA',
-    },
-    {
-      'jobTitle': 'Graphic Designer',
-      'jobDescription': 'Create visual concepts for branding.',
-      'availability': 'Full-Time',
-      'location': 'Miami, FL',
-    },
-    {
-      'jobTitle': 'DevOps Engineer',
-      'jobDescription': 'Optimize and automate development processes.',
-      'availability': 'Full-Time',
-      'location': 'Denver, CO',
-    },
-  ];
-
+  List<Map<String, dynamic>> jobs = [];
   String query = '';
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchJobs();
+    subscribeToJobs();
+  }
+
+  Future<void> fetchJobs() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('jobs')
+          .select(
+              'id, job_title, job_description, department, availability, campus')
+          .order('created_at', ascending: false);
+
+      if (response is List) {
+        setState(() {
+          jobs = List<Map<String, dynamic>>.from(response);
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Unexpected response format: $response');
+      }
+    } catch (error) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching jobs: $error')),
+      );
+    }
+  }
+
+  void subscribeToJobs() {
+    Supabase.instance.client
+        .from('jobs')
+        .stream(primaryKey: ['id'])
+        .order('created_at')
+        .listen((event) {
+          setState(() {
+            jobs = List<Map<String, dynamic>>.from(event);
+          });
+        });
+  }
+
+  Future<void> applyForJob(int jobId) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
+
+    try {
+      final response =
+          await Supabase.instance.client.from('applications').insert({
+        'job_id': jobId,
+        'user_id': userId,
+        'status': 'Pending',
+        'applied_at': DateTime.now().toIso8601String(),
+      }).select();
+
+      if (response is List && response.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Application submitted successfully!')),
+        );
+      } else {
+        throw Exception('Unexpected response: $response');
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error applying for the job: $error')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final filteredJobs = jobs.where((job) {
-      final jobTitle = job['jobTitle']?.toLowerCase() ?? '';
-      final jobDescription = job['jobDescription']?.toLowerCase() ?? '';
+      final jobTitle = job['job_title']?.toLowerCase() ?? '';
+      final jobDescription = job['job_description']?.toLowerCase() ?? '';
       return jobTitle.contains(query.toLowerCase()) ||
           jobDescription.contains(query.toLowerCase());
     }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Jobs"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
+        title: TextField(
+          decoration: const InputDecoration(
+            hintText: 'Search jobs...',
+            border: InputBorder.none,
+          ),
+          onChanged: (value) {
+            setState(() {
+              query = value;
+            });
           },
         ),
+        automaticallyImplyLeading: false,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                SizedBox(
-                  width: 550,
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search jobs...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        query = value;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: ListView.builder(
                 itemCount: filteredJobs.length,
@@ -118,14 +128,11 @@ class _JobListUserScreenState extends State<JobListUserScreen> {
                 },
               ),
             ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildJobCard({
-    required Map<String, String> job,
+    required Map<String, dynamic> job,
     required BuildContext context,
   }) {
     return Padding(
@@ -153,7 +160,7 @@ class _JobListUserScreenState extends State<JobListUserScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  job['jobTitle'] ?? '',
+                  job['job_title'] ?? '',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -161,7 +168,7 @@ class _JobListUserScreenState extends State<JobListUserScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  job['jobDescription'] ?? '',
+                  job['job_description'] ?? '',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12),
@@ -172,82 +179,37 @@ class _JobListUserScreenState extends State<JobListUserScreen> {
                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
                 Text(
-                  'Location: ${job['location'] ?? ''}',
+                  'Campus: ${job['campus'] ?? ''}',
                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _viewJobDetails(context, job);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => applyForJob(job['id']),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      child: const Text(
+                        "Apply",
+                        style: TextStyle(fontSize: 12, color: Colors.white),
                       ),
                     ),
-                    child: const Text(
-                      "View",
-                      style: TextStyle(fontSize: 12, color: Colors.white),
-                    ),
-                  ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  void _viewJobDetails(BuildContext context, Map<String, String> job) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(job['jobTitle'] ?? 'Job Details'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Description:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(job['jobDescription'] ?? ''),
-              const SizedBox(height: 16),
-              const Text(
-                'Availability:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(job['availability'] ?? ''),
-              const SizedBox(height: 16),
-              const Text(
-                'Location:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(job['location'] ?? ''),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

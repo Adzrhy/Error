@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ApplicantsScreen extends StatefulWidget {
-  const ApplicantsScreen({super.key});
+  const ApplicantsScreen({Key? key}) : super(key: key);
 
   @override
   State<ApplicantsScreen> createState() => _ApplicantsScreenState();
@@ -12,16 +13,40 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
   String selectedFilter = 'All';
   int currentPage = 1;
   final int itemsPerPage = 5;
+  bool isLoading = true;
 
-  final List<Map<String, dynamic>> applicants = [
-    {'id': '1', 'name': 'Alberto Cruz', 'stage': 1},
-    {'id': '2', 'name': 'Sudaiz Alhad', 'stage': 2},
-    {'id': '3', 'name': 'Glenn Andales', 'stage': 3},
-    {'id': '4', 'name': 'Yasher Abam', 'stage': 1},
-    {'id': '5', 'name': 'Mary-Angelie Mongcupa', 'stage': 3},
-    {'id': '6', 'name': 'David Clark', 'stage': 2},
-    {'id': '7', 'name': 'Sophia Martinez', 'stage': 3},
-  ];
+  List<Map<String, dynamic>> applicants = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchApprovedApplicants();
+  }
+
+  Future<void> fetchApprovedApplicants() async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      final response = await Supabase.instance.client
+          .from('applications')
+          .select('id, profiles(given_name, sur_name), stage')
+          .eq('status', 'Approved')
+          .order('id', ascending: true) as List<dynamic>;
+
+      setState(() {
+        applicants = List<Map<String, dynamic>>.from(response);
+        isLoading = false;
+      });
+    } catch (error) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching applicants: $error')),
+      );
+    }
+  }
 
   List<Map<String, dynamic>> get filteredApplicants {
     List<Map<String, dynamic>> filteredList = applicants;
@@ -43,9 +68,9 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
 
     if (searchQuery.isNotEmpty) {
       filteredList = filteredList.where((applicant) {
-        return applicant['name']
-            .toLowerCase()
-            .contains(searchQuery.toLowerCase());
+        final fullName =
+            '${applicant['profiles']['given_name']} ${applicant['profiles']['sur_name']}';
+        return fullName.toLowerCase().contains(searchQuery.toLowerCase());
       }).toList();
     }
 
@@ -75,7 +100,7 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 1200, minHeight: 800),
+            constraints: const BoxConstraints(maxWidth: 800, minHeight: 300),
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -178,12 +203,6 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
     );
   }
 
-  void resetIds() {
-    for (int i = 0; i < applicants.length; i++) {
-      applicants[i]['id'] = (i + 1).toString();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,72 +213,70 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
             Navigator.pop(context);
           },
         ),
+        title: const Text('Applicants'),
       ),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 900),
-            margin: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(36),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  margin: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey[200]!),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Applicants',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
-                      Row(
-                        children: [
-                          DropdownButton<String>(
-                            value: selectedFilter,
-                            onChanged: (value) {
-                              setState(() {
-                                selectedFilter = value!;
-                                currentPage = 1;
-                              });
-                            },
-                            items: progressiveFilters
-                                .map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.all(36),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey[200]!),
                           ),
-                          const SizedBox(width: 20),
-                          Container(
-                            width: 400,
-                            height: 45,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Applicants',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                            child: Row(
+                            Row(
                               children: [
-                                Expanded(
+                                DropdownButton<String>(
+                                  value: selectedFilter,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedFilter = value!;
+                                      currentPage = 1;
+                                    });
+                                  },
+                                  items: progressiveFilters
+                                      .map<DropdownMenuItem<String>>(
+                                          (String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value),
+                                    );
+                                  }).toList(),
+                                ),
+                                const SizedBox(width: 20),
+                                SizedBox(
+                                  width: 400,
+                                  height: 45,
                                   child: TextField(
                                     onChanged: (value) {
                                       setState(() {
@@ -270,209 +287,135 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                                     style: const TextStyle(fontSize: 16),
                                     decoration: InputDecoration(
                                       hintText: 'Search applicants...',
-                                      hintStyle: TextStyle(
-                                        color: Colors.grey[400],
-                                        fontSize: 16,
-                                      ),
                                       contentPadding:
                                           const EdgeInsets.symmetric(
                                         horizontal: 20,
                                         vertical: 0,
                                       ),
-                                      border: InputBorder.none,
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                        borderSide: BorderSide(
+                                          color: Colors.grey[300]!,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 16),
-                                  child: Icon(Icons.search,
-                                      color: Colors.grey[400], size: 24),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-                Container(
-                  margin: const EdgeInsets.all(36),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[200]!),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Theme(
-                      data: Theme.of(context).copyWith(
-                        dividerColor: Colors.grey[200],
-                      ),
-                      child: DataTable(
-                        headingRowColor:
-                            WidgetStateProperty.all(const Color(0xFF358873)),
-                        dataRowHeight: 65,
-                        horizontalMargin: 30,
-                        columnSpacing: 20,
-                        columns: [
-                          DataColumn(
-                            label: Container(
-                              width: 80,
-                              alignment: Alignment.centerLeft,
-                              child: const Text(
-                                'ID',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
+                      // Data Table
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            dividerColor: Colors.grey[200],
                           ),
-                          DataColumn(
-                            label: Container(
-                              width: 250,
-                              alignment: Alignment.centerLeft,
-                              child: const Text(
-                                'NAME',
-                                style: TextStyle(color: Colors.white),
-                              ),
+                          child: DataTable(
+                            headingRowColor: MaterialStateProperty.all(
+                              const Color(0xFF358873),
                             ),
-                          ),
-                          DataColumn(
-                            label: Container(
-                              width: 230,
-                              alignment: Alignment.centerLeft,
-                              child: const Text(
-                                'STAGE',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Container(
-                              width: 150,
-                              alignment: Alignment.centerLeft,
-                              child: const Text(
-                                'ACTIONS',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ],
-                        rows: paginatedApplicants.map((applicant) {
-                          return DataRow(
-                            cells: [
-                              DataCell(Container(
-                                width: 100,
-                                alignment: Alignment.centerLeft,
-                                child: Text(applicant['id']),
-                              )),
-                              DataCell(Container(
-                                width: 180,
-                                alignment: Alignment.centerLeft,
-                                child: Text(applicant['name']),
-                              )),
-                              DataCell(Container(
-                                width: 150,
-                                alignment: Alignment.centerLeft,
-                                child: Row(
-                                  children: List.generate(
-                                    3,
-                                    (index) => Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 4),
-                                      child: Icon(
-                                        Icons.circle,
-                                        size: 12,
-                                        color: index < applicant['stage']
-                                            ? Colors.green
-                                            : Colors.grey[300],
+                            dataRowHeight: 65,
+                            horizontalMargin: 24,
+                            columnSpacing: 24,
+                            columns: const [
+                              DataColumn(
+                                  label: Text('ID',
+                                      style: TextStyle(color: Colors.white))),
+                              DataColumn(
+                                  label: Text('NAME',
+                                      style: TextStyle(color: Colors.white))),
+                              DataColumn(
+                                  label: Text('STAGE',
+                                      style: TextStyle(color: Colors.white))),
+                              DataColumn(
+                                  label: Text('ACTIONS',
+                                      style: TextStyle(color: Colors.white))),
+                            ],
+                            rows: paginatedApplicants.map((applicant) {
+                              final fullName =
+                                  '${applicant['profiles']['given_name']} ${applicant['profiles']['sur_name']}';
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(applicant['id'].toString())),
+                                  DataCell(Text(fullName)),
+                                  DataCell(
+                                    Row(
+                                      children: List.generate(
+                                        3,
+                                        (index) => Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 4),
+                                          child: Icon(
+                                            Icons.circle,
+                                            size: 12,
+                                            color: index < applicant['stage']
+                                                ? Colors.green
+                                                : Colors.grey[300],
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              )),
-                              DataCell(PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'View') {
-                                    showStageModal(context, applicant['name'],
-                                        applicant['stage']);
-                                  } else if (value == 'Proceed' &&
-                                      applicant['stage'] == 3) {
-                                    setState(() {
-                                      applicants.removeWhere((item) =>
-                                          item['id'] == applicant['id']);
-                                      resetIds();
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Completed!'),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'View',
-                                    child: ListTile(
-                                      leading: Icon(Icons.remove_red_eye),
-                                      title: Text('View'),
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'Proceed',
-                                    enabled: applicant['stage'] == 3,
-                                    child: const ListTile(
-                                      leading: Icon(Icons.check),
-                                      title: Text('Proceed'),
+                                  DataCell(
+                                    PopupMenuButton<String>(
+                                      onSelected: (value) {
+                                        if (value == 'View') {
+                                          showStageModal(context, fullName,
+                                              applicant['stage']);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(
+                                          value: 'View',
+                                          child: ListTile(
+                                            leading: Icon(Icons.remove_red_eye),
+                                            title: Text('View'),
+                                          ),
+                                        ),
+                                      ],
+                                      icon: const Icon(Icons.more_vert),
                                     ),
                                   ),
                                 ],
-                                icon: const Icon(Icons.more_vert),
-                              )),
-                            ],
-                          );
-                        }).toList(),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 36),
-                  color: Colors.white,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        onPressed: currentPage > 1
-                            ? () {
-                                setState(() {
-                                  currentPage--;
-                                });
-                              }
-                            : null,
-                        icon: const Icon(Icons.arrow_back),
-                      ),
-                      Text(
-                          'Page $currentPage of ${(filteredApplicants.length / itemsPerPage).ceil()}'),
-                      IconButton(
-                        onPressed: currentPage <
-                                (filteredApplicants.length / itemsPerPage)
-                                    .ceil()
-                            ? () {
-                                setState(() {
-                                  currentPage++;
-                                });
-                              }
-                            : null,
-                        icon: const Icon(Icons.arrow_forward),
+                      // Pagination
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            IconButton(
+                              onPressed: currentPage > 1
+                                  ? () => setState(() => currentPage--)
+                                  : null,
+                              icon: const Icon(Icons.arrow_back),
+                            ),
+                            Text(
+                              'Page $currentPage of ${(filteredApplicants.length / itemsPerPage).ceil()}',
+                            ),
+                            IconButton(
+                              onPressed: currentPage <
+                                      (filteredApplicants.length / itemsPerPage)
+                                          .ceil()
+                                  ? () => setState(() => currentPage++)
+                                  : null,
+                              icon: const Icon(Icons.arrow_forward),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

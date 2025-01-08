@@ -1,32 +1,117 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileModal extends StatefulWidget {
-  const ProfileModal({super.key});
+  const ProfileModal({super.key, required this.onProfileUpdated});
+
+  final VoidCallback onProfileUpdated;
 
   @override
   State<ProfileModal> createState() => _ProfileModalState();
 }
 
 class _ProfileModalState extends State<ProfileModal> {
-  final TextEditingController departmentController =
-      TextEditingController(text: 'Human Resources');
-  final TextEditingController roleController =
-      TextEditingController(text: 'Administrative');
-  final TextEditingController firstNameController =
-      TextEditingController(text: 'Al-adzrhy');
-  final TextEditingController lastNameController =
-      TextEditingController(text: 'Jalman');
-  final TextEditingController dobController =
-      TextEditingController(text: '12/12/1986');
-  final TextEditingController emailController =
-      TextEditingController(text: 'al-adzrhy.jalman@one.uz.edu.ph');
-  final TextEditingController phoneController =
-      TextEditingController(text: '+1 (555) 789-0123');
+  final TextEditingController departmentController = TextEditingController();
+  final TextEditingController roleController = TextEditingController();
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController dobController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
 
   bool isEditingPersonalInfo = false;
   bool isEditingDepartmentRole = false;
   bool isEditingNote = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
+
+    try {
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .single();
+
+      if (response != null) {
+        setState(() {
+          firstNameController.text = response['given_name'] ?? '';
+          lastNameController.text = response['sur_name'] ?? '';
+          dobController.text = response['date_of_birth'] ?? '';
+          emailController.text = response['email'] ?? '';
+          phoneController.text = response['phone'] ?? '';
+          departmentController.text = response['department'] ?? '';
+          roleController.text = response['role'] ?? '';
+          noteController.text = response['note'] ?? '';
+        });
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching profile: $error')),
+      );
+    }
+  }
+
+  Future<void> _updateProfile() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
+
+    try {
+      final Map<String, dynamic> updates = {
+        'given_name': firstNameController.text.trim(),
+        'sur_name': lastNameController.text.trim(),
+        'date_of_birth': dobController.text.trim().isEmpty
+            ? null
+            : dobController.text.trim(), // Send null if empty
+        'email': emailController.text.trim(),
+        'phone': phoneController.text.trim(),
+        'department': departmentController.text.trim(),
+        'role': roleController.text.trim(),
+        'note': noteController.text.trim(),
+      };
+
+      await Supabase.instance.client
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully!')),
+      );
+
+      widget.onProfileUpdated();
+
+      setState(() {
+        isEditingPersonalInfo = false;
+        isEditingDepartmentRole = false;
+        isEditingNote = false;
+      });
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating profile: $error')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,50 +144,25 @@ class _ProfileModalState extends State<ProfileModal> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Profile Picture and Info
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const CircleAvatar(
                       radius: 50,
-                      backgroundImage: AssetImage('assets/profile_picture.jpg'),
+                      backgroundImage:
+                          AssetImage('assets/profile_placeholder.png'),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Al-adzrhy Jalman',
-                      style: TextStyle(
+                    Text(
+                      '${firstNameController.text} ${lastNameController.text}',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'General Manager',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    const SizedBox(height: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Phone Number: ${phoneController.text}',
-                          style:
-                              const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Email: ${emailController.text}',
-                          style:
-                              const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
                   ],
                 ),
                 const SizedBox(width: 32),
-
-                // Editable Fields
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,6 +171,9 @@ class _ProfileModalState extends State<ProfileModal> {
                         title: 'Personal Information',
                         isEditing: isEditingPersonalInfo,
                         onEditToggle: () {
+                          if (isEditingPersonalInfo) {
+                            _updateProfile();
+                          }
                           setState(() {
                             isEditingPersonalInfo = !isEditingPersonalInfo;
                           });
@@ -122,12 +185,12 @@ class _ProfileModalState extends State<ProfileModal> {
                             _buildEditableRow('Last Name', lastNameController,
                                 isEditingPersonalInfo),
                             _buildEditableRow('Date of Birth', dobController,
-                                isEditingPersonalInfo),
+                                isEditingPersonalInfo,
+                                isDate: true),
                             _buildEditableRow('Email Address', emailController,
                                 isEditingPersonalInfo),
                             _buildEditableRow('Phone Number', phoneController,
                                 isEditingPersonalInfo),
-                            _buildStaticRow('User Role', roleController.text),
                           ],
                         ),
                       ),
@@ -136,6 +199,9 @@ class _ProfileModalState extends State<ProfileModal> {
                         title: 'Department and Role',
                         isEditing: isEditingDepartmentRole,
                         onEditToggle: () {
+                          if (isEditingDepartmentRole) {
+                            _updateProfile();
+                          }
                           setState(() {
                             isEditingDepartmentRole = !isEditingDepartmentRole;
                           });
@@ -146,23 +212,6 @@ class _ProfileModalState extends State<ProfileModal> {
                                 departmentController, isEditingDepartmentRole),
                             _buildEditableRow('Role', roleController,
                                 isEditingDepartmentRole),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSection(
-                        title: 'Note',
-                        isEditing: isEditingNote,
-                        onEditToggle: () {
-                          setState(() {
-                            isEditingNote = !isEditingNote;
-                          });
-                        },
-                        content: Column(
-                          children: [
-                            _buildEditableRow(
-                                'Note', noteController, isEditingNote,
-                                maxLines: 3),
                           ],
                         ),
                       ),
@@ -216,8 +265,11 @@ class _ProfileModalState extends State<ProfileModal> {
   }
 
   Widget _buildEditableRow(
-      String label, TextEditingController controller, bool isEditable,
-      {int maxLines = 1}) {
+    String label,
+    TextEditingController controller,
+    bool isEditable, {
+    bool isDate = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -233,37 +285,39 @@ class _ProfileModalState extends State<ProfileModal> {
           Expanded(
             flex: 3,
             child: isEditable
-                ? TextField(
-                    controller: controller,
-                    maxLines: maxLines,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                  )
+                ? isDate
+                    ? GestureDetector(
+                        onTap: () async {
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                          );
+                          if (pickedDate != null) {
+                            controller.text =
+                                pickedDate.toIso8601String().split('T')[0];
+                          }
+                        },
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: controller,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              hintText: 'YYYY-MM-DD',
+                            ),
+                          ),
+                        ),
+                      )
+                    : TextField(
+                        controller: controller,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                      )
                 : Text(controller.text),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStaticRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: Text(value),
           ),
         ],
       ),

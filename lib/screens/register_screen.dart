@@ -48,18 +48,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
 
         if (response.user != null) {
-          // Save additional data to "profiles" table
           await Supabase.instance.client.from('profiles').insert({
-  'id': response.user!.id,
-  'sur_name': _surNameController.text.trim(), // Use 'sur_name' as per the database column name
-  'given_name': _givenNameController.text.trim(),
-  'email': _emailController.text.trim(),
-  'role': 'user', // Default role
-});
-
+            'id': response.user!.id,
+            'sur_name': _surNameController.text.trim(),
+            'given_name': _givenNameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'role': 'user', // Default role
+          });
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Registration successful! Please login.')),
+            const SnackBar(
+                content: Text('Registration successful! Please login.')),
           );
           Navigator.pushReplacementNamed(context, '/login');
         } else {
@@ -181,7 +180,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         prefixIcon: const Icon(Icons.lock),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                            _isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                           ),
                           onPressed: () {
                             setState(() {
@@ -218,7 +219,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           onPressed: () {
                             setState(() {
-                              _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                              _isConfirmPasswordVisible =
+                                  !_isConfirmPasswordVisible;
                             });
                           },
                         ),
@@ -253,7 +255,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         const Text('Already have an account? '),
                         TextButton(
-                          onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                          onPressed: () =>
+                              Navigator.pushReplacementNamed(context, '/login'),
                           child: const Text('Login'),
                         ),
                       ],
